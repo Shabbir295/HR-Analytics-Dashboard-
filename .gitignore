@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.py[cod]
+.streamlit/secrets.toml
+data/employees.json
+data/users.json
+data/attendance.json
+data/leaves.json
