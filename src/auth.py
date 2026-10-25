@@ -1,8 +1,9 @@
-
 import json
 import hashlib
 import hmac
 from pathlib import Path
+
+import streamlit as st
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 AUTH_FILE = BASE_DIR / "data" / "users.json"
@@ -12,18 +13,58 @@ def hash_password(password):
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
-def load_users():
-    if not AUTH_FILE.exists():
-        return []
-
+def get_secret_admin():
+    """Read Admin credentials from Streamlit Secrets."""
     try:
-        with open(AUTH_FILE, "r", encoding="utf-8") as file:
-            users = json.load(file)
+        admin = st.secrets.get("admin", {})
+        email = str(admin.get("email", "")).strip().lower()
+        password = str(admin.get("password", ""))
+        name = str(admin.get("name", "Admin")).strip() or "Admin"
+        company = str(admin.get("company", "HCM Lite")).strip() or "HCM Lite"
 
-        return users if isinstance(users, list) else []
+        if email and password:
+            return {
+                "id": 1,
+                "company": company,
+                "name": name,
+                "email": email,
+                "password": password,
+                "role": "Admin",
+            }
+    except Exception:
+        pass
 
-    except (json.JSONDecodeError, OSError):
-        return []
+    return None
+
+
+def load_users():
+    users = []
+
+    if AUTH_FILE.exists():
+        try:
+            with open(AUTH_FILE, "r", encoding="utf-8") as file:
+                stored_users = json.load(file)
+
+            if isinstance(stored_users, list):
+                users = stored_users
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Secrets-based Admin is available even without users.json.
+    secret_admin = get_secret_admin()
+
+    if secret_admin:
+        users = [
+            user for user in users
+            if user.get("email", "").lower() != secret_admin["email"]
+        ]
+        users.insert(0, {
+            key: value
+            for key, value in secret_admin.items()
+            if key != "password"
+        })
+
+    return users
 
 
 def save_users(users):
@@ -34,12 +75,19 @@ def save_users(users):
 
 
 def create_admin(company_name, name, email, password):
+    # Don't create another Admin when Secrets already defines one.
+    if get_secret_admin():
+        return False, "Admin Secrets mein pehle se configured hai."
+
     users = load_users()
 
-    if any(user["role"] == "Admin" for user in users):
+    if any(user.get("role") == "Admin" for user in users):
         return False, "Admin account pehle se bana hua hai."
 
-    if any(user["email"].lower() == email.lower() for user in users):
+    if any(
+        user.get("email", "").lower() == email.strip().lower()
+        for user in users
+    ):
         return False, "Ye email pehle se registered hai."
 
     users.append({
@@ -48,7 +96,7 @@ def create_admin(company_name, name, email, password):
         "name": name.strip(),
         "email": email.strip().lower(),
         "password_hash": hash_password(password),
-        "role": "Admin"
+        "role": "Admin",
     })
 
     save_users(users)
@@ -56,15 +104,37 @@ def create_admin(company_name, name, email, password):
 
 
 def authenticate(email, password):
-    users = load_users()
+    secret_admin = get_secret_admin()
+    entered_email = email.strip().lower()
+
+    # First check the secure Cloud Admin credentials.
+    if secret_admin:
+        if (
+            hmac.compare_digest(
+                entered_email,
+                secret_admin["email"],
+            )
+            and hmac.compare_digest(
+                password,
+                secret_admin["password"],
+            )
+        ):
+            return {
+                key: value
+                for key, value in secret_admin.items()
+                if key != "password"
+            }
+
+    # Also support existing local accounts.
     entered_hash = hash_password(password)
 
-    for user in users:
+    for user in load_users():
         if (
-            user["email"].lower() == email.strip().lower()
+            user.get("email", "").lower() == entered_email
+            and user.get("password_hash")
             and hmac.compare_digest(
                 user["password_hash"],
-                entered_hash
+                entered_hash,
             )
         ):
             return user
