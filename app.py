@@ -17,6 +17,13 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 users = load_users()
+try:
+    admin = st.secrets.get("admin", {})
+    st.sidebar.write("Secrets section found:", bool(admin))
+    st.sidebar.write("Admin email configured:", bool(admin.get("email")))
+    st.sidebar.write("Admin password configured:", bool(admin.get("password")))
+except Exception as e:
+    st.sidebar.error(f"Secrets configuration issue: {type(e).__name__}")
 admin_exists = any(user.get("role") == "Admin" for user in users)
 
 st.sidebar.title("HCM Lite")
