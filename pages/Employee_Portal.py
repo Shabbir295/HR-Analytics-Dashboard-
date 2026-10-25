@@ -1,4 +1,6 @@
-
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 import hashlib
 import hmac
 import json
@@ -387,6 +389,8 @@ def count_working_days(start, end, working_days):
 
 
 def show_leave_requests(employee):
+    st.divider()
+    show_my_payslips(employee)
     st.subheader("🌴 Apply for Leave")
 
     leaves = load_json(LEAVE_FILE, [])
@@ -539,6 +543,103 @@ def show_leave_requests(employee):
         )
     else:
         st.info("Abhi koi leave request nahi hai.")
+
+        
+def show_my_payslips(employee):
+    st.subheader("🧾 My Payslips")
+
+    payslips_file = DATA_DIR / "payslips.json"
+
+    try:
+        with open(payslips_file, "r", encoding="utf-8") as file:
+            records = json.load(file)
+        if not isinstance(records, list):
+            records = []
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        records = []
+
+    employee_id = str(employee.get("id", "")).strip()
+
+    # Sirf logged-in employee ki payslips
+    my_payslips = [
+        record for record in records
+        if str(record.get("employee_id", "")).strip() == employee_id
+    ]
+
+    my_payslips.sort(
+        key=lambda item: item.get("generated_on", ""),
+        reverse=True,
+    )
+
+    if not my_payslips:
+        st.info(
+            "Abhi aapki payslip available nahi hai. "
+            "HR/Admin se contact karein."
+        )
+        return
+
+    for record in my_payslips:
+        month = record.get("salary_month", "Unknown")
+        payslip_id = record.get("payslip_id", "payslip")
+
+        with st.container(border=True):
+            st.markdown(f"**Salary Month:** {month}")
+            st.write(
+                f"**Net Salary:** PKR "
+                f"{float(record.get('net_salary', 0)):,.2f}"
+            )
+            st.caption(f"Payslip ID: {payslip_id}")
+
+            buffer = io.BytesIO()
+            pdf = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+
+            pdf.setTitle(f"Payslip {payslip_id}")
+            pdf.setFont("Helvetica-Bold", 20)
+            pdf.drawCentredString(
+                width / 2, height - 60, "HCM LITE - PAYSLIP"
+            )
+
+            pdf.setFont("Helvetica", 11)
+            lines = [
+                ("Employee", record.get("employee_name", "")),
+                ("Employee ID", record.get("employee_id", "")),
+                ("Department", record.get("department", "")),
+                ("Job Title", record.get("job_title", "")),
+                ("Email", record.get("email", "")),
+                ("Salary Month", month),
+                ("Basic Salary", record.get("basic_salary", 0)),
+                ("Allowances", record.get("allowances", 0)),
+                ("Bonus", record.get("bonus", 0)),
+                ("Gross Salary", record.get("gross_salary", 0)),
+                ("Deductions", record.get("deductions", 0)),
+                ("NET SALARY", record.get("net_salary", 0)),
+                ("Generated On", record.get("generated_on", "")),
+            ]
+
+            y = height - 110
+
+            for label, value in lines:
+                if label in (
+                    "Basic Salary", "Allowances", "Bonus",
+                    "Gross Salary", "Deductions", "NET SALARY"
+                ):
+                    value = f"PKR {float(value or 0):,.2f}"
+
+                pdf.drawString(55, y, f"{label}: {value}")
+                y -= 27
+
+            pdf.save()
+            buffer.seek(0)
+
+            st.download_button(
+                "⬇️ Download PDF",
+                data=buffer.getvalue(),
+                file_name=f"{payslip_id}.pdf",
+                mime="application/pdf",
+                key=f"download_{payslip_id}",
+            )
+
 
 
 def show_employee_dashboard():
