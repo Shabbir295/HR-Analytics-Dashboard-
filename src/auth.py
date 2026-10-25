@@ -103,21 +103,18 @@ def create_admin(company_name, name, email, password):
     return True, "Admin account successfully create ho gaya!"
 
 
+
 def authenticate(email, password):
     secret_admin = get_secret_admin()
     entered_email = email.strip().lower()
 
-    # First check the secure Cloud Admin credentials.
     if secret_admin:
+        saved_email = secret_admin["email"].strip().lower()
+        saved_password = secret_admin["password"]
+
         if (
-            hmac.compare_digest(
-                entered_email,
-                secret_admin["email"],
-            )
-            and hmac.compare_digest(
-                password,
-                secret_admin["password"],
-            )
+            hmac.compare_digest(entered_email, saved_email)
+            and hmac.compare_digest(password, saved_password)
         ):
             return {
                 key: value
@@ -125,18 +122,18 @@ def authenticate(email, password):
                 if key != "password"
             }
 
-    # Also support existing local accounts.
     entered_hash = hash_password(password)
 
     for user in load_users():
+        saved_email = user.get("email", "").strip().lower()
+        saved_hash = user.get("password_hash", "")
+
         if (
-            user.get("email", "").lower() == entered_email
-            and user.get("password_hash")
-            and hmac.compare_digest(
-                user["password_hash"],
-                entered_hash,
-            )
+            hmac.compare_digest(entered_email, saved_email)
+            and saved_hash
+            and hmac.compare_digest(saved_hash, entered_hash)
         ):
             return user
 
     return None
+
