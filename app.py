@@ -91,26 +91,121 @@ if user["role"] != "Admin":
     st.warning("Employee dashboard abhi setup nahi hua.")
     st.stop()
 
+
+# Place immediately after st.set_page_config(...)
+
 st.markdown("""
 <style>
+/* Dark glassmorphism foundation */
+.stApp {
+    background:
+        radial-gradient(ellipse at 10% 0%, #123b35 0%, transparent 38%),
+        radial-gradient(ellipse at 90% 15%, #172554 0%, transparent 35%),
+        #080d14;
+    color: #e5f3ef;
+}
+
 .block-container {
-    padding-top: 1.5rem;
+    padding-top: 2rem;
     padding-bottom: 2rem;
+    max-width: 1500px;
 }
+
+/* Smooth entrance animation */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Glass effect for metric cards */
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, #14213d, #203a5f);
-    border: 1px solid #344b69;
-    padding: 18px;
-    border-radius: 14px;
+    background: linear-gradient(
+        135deg,
+        rgba(18, 42, 43, 0.88),
+        rgba(15, 23, 42, 0.76)
+    );
+    border: 1px solid rgba(52, 211, 153, 0.23);
+    border-radius: 18px;
+    padding: 20px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    animation: fadeUp 0.65s ease both;
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
 }
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-4px);
+    border-color: rgba(52, 211, 153, 0.65);
+    box-shadow: 0 12px 32px rgba(16, 185, 129, 0.10);
+}
+
 [data-testid="stMetricLabel"] {
-    color: #dbeafe;
+    color: #a7c8bf;
 }
+
 [data-testid="stMetricValue"] {
-    color: #ffffff;
+    color: #6ee7b7;
+}
+
+/* Sidebar glass panel */
+[data-testid="stSidebar"] {
+    background: rgba(8, 18, 25, 0.96);
+    border-right: 1px solid rgba(52, 211, 153, 0.16);
+}
+
+[data-testid="stSidebar"] * {
+    transition: color 0.2s ease;
+}
+
+/* Headings */
+h1, h2, h3 {
+    color: #e6fff5;
+    letter-spacing: -0.4px;
+}
+
+/* Buttons */
+.stButton > button,
+.stFormSubmitButton > button {
+    border: 1px solid rgba(52, 211, 153, 0.45);
+    border-radius: 10px;
+    background: linear-gradient(135deg, #047857, #065f46);
+    color: white;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.stButton > button:hover,
+.stFormSubmitButton > button:hover {
+    filter: brightness(1.18);
+    transform: translateY(-2px);
+    border-color: #6ee7b7;
+}
+
+/* Chart and dataframe containers */
+[data-testid="stPlotlyChart"],
+[data-testid="stDataFrame"] {
+    animation: fadeUp 0.7s ease both;
+}
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 @st.cache_data
